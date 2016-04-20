@@ -2,13 +2,16 @@ from numpy import *
 import scipy.linalg
 
 
-
 def bresenham(start, end):
     """Bresenham's Line Algorithm
+    MATLAB CHECK OK
     Produces a list of tuples from start and end
     >>> points1 = bresenham((0, 0), (3, 4))
     >>> print points1
     [(0, 0), (1, 1), (1, 2), (2, 3), (3, 4)]
+    :param start: Start Coordinate
+    :param end: Ending Coordinate
+    :return: A list of tuples from start and end
     """
     # Setup initial conditions
     x1, y1 = start
@@ -58,6 +61,7 @@ def bresenham(start, end):
 
 def inverse_scanner_bres(M, N, x, y, theta, r, rmax, p_occ, p_free):
     '''
+    MATLAB CHECK OK
     % Input:
     %   M = Total Height of map
     %   N = Total Width of map
@@ -72,55 +76,60 @@ def inverse_scanner_bres(M, N, x, y, theta, r, rmax, p_occ, p_free):
     %   m = Matrix representing the inverse measurement model
     '''
     # Bound the robot within the map dimensions
-    #x1 = max(1,min(c_[M round(x)]))
-    x1 = int(maximum(1,minimum(M,round(x))))
-    #y1 = max(1,min(N,round(y)))
-    y1 = int(maximum(1,minimum(N,round(y))))
+    # x1 = max(1,min(c_[M round(x)]))
+    x1 = int(maximum(1, minimum(M, round(x))))
+    # y1 = max(1,min(N,round(y)))
+    y1 = int(maximum(1, minimum(N, round(y))))
     # Calculate position of measured object (endpoint of ray)
-    endpt = c_[x,y] + r * c_[cos(theta),sin(theta)]
+    endpt = c_[x, y] + r * c_[cos(theta), sin(theta)]
     endpt = endpt[0]
-    #print(endpt)
+    # print(endpt)
     # Bound the endpoint within the map dimensions
-    #x2 = max(1,min(M,round(endpt(1))))
-    x2 = int(maximum(1,minimum(M,round(endpt[0]))))
-    #y2 = max(1,min(N,round(endpt(2))))
-    y2 = int(maximum(1,minimum(N,round(endpt[1]))))
+    # x2 = max(1,min(M,round(endpt(1))))
+    x2 = int(maximum(1, minimum(M, round(endpt[0]))))
+    # y2 = max(1,min(N,round(endpt(2))))
+    y2 = int(maximum(1, minimum(N, round(endpt[1]))))
     # Get coordinates of all cells traversed by laser ray
-    #[list(:,1), list(:,2)] = bresenham(x1,y1,x2,y2);
-    points = bresenham((x1,y1),(x2,y2))
-    #print(points)
+    # [list(:,1), list(:,2)] = bresenham(x1,y1,x2,y2);
+    points = bresenham((x1, y1), (x2, y2))
+    # print(points)
     # Assign probabilities
-    #m = [list p_free * ones(length(list(:, 1)), 1)];
-    b = p_free*ones(len(points))
-    m = c_[points,b]
+    # m = [list p_free * ones(length(list(:, 1)), 1)];
+    b = p_free * ones(len(points))
+    m = c_[points, b]
 
     if r < rmax:
-        m[-1,2] = p_occ
-
+        m[-1, 2] = p_occ
 
     return m
 
 
-def ogmap(M, N, og, x, phi_m, r_m, r_max):
+def ogmap(M, N, ogl, x, phi_m, r_m, r_max):
+    """ Occupancy Grid Mapping Algorithm
+    M, N - size of the map we want, to formulate L0
+    og - Log odds representation of occupancy at time t-1, equals to {l(t-1,i)}
+    x - Current state Xt
+    phi_m, r_m, r_max - Measurement, Zt
+    """
     print x
 
     # Initial belief map
-    m = 0.5*ones((M,N))
-    L0 = log(m/(1-m));
+    m = 0.5 * ones((M, N))
+    L0 = log(m / (1 - m))
 
-    # Probabilites of cells
-    p_occ = 0.7;
-    p_free = 0.3;
+    # Probabilities of cells
+    p_occ = 0.7
+    p_free = 0.3
 
     # The cells affected by this specific measurement in log odds (only used
     # in Bresenham ray trace mode)
-    imml = zeros((M,N));
+    imml = zeros((M, N))
 
-    #print(phi_m)
-    #print(r_m)
+    # print(phi_m)
+    # print(r_m)
 
     # Loop through each laser measurement
-    for i in range(0, len(phi_m)-1):
+    for i in range(0, len(phi_m) - 1):
 
         if isnan(r_m[i]):
             # print r_m[i]
@@ -128,18 +137,17 @@ def ogmap(M, N, og, x, phi_m, r_m, r_max):
             continue
 
         # Get inverse measurement model
-        invmod = inverse_scanner_bres(M, N, x[0], x[1], phi_m[i]+x[2],
-            r_m[i], r_max, p_occ, p_free)
+        inverse_model = inverse_scanner_bres(M, N, x[0], x[1], phi_m[i] + x[2],
+                                      r_m[i], r_max, p_occ, p_free)
 
         # Loop through each cell from measurement model
-        for j in range(0,len(invmod[:, 0]-1)):
-            ix = invmod[j, 0];
-            iy = invmod[j, 1];
-            il = invmod[j, 2];
+        for j in range(0, len(inverse_model[:, 0]) - 1):
+            ix = inverse_model[j, 0]
+            iy = inverse_model[j, 1]
+            il = inverse_model[j, 2]
 
             # Calculate updated log odds
-            og[ix, iy] = og[ix, iy] + log(il/(1-il)) - L0[ix, iy];
-            imml[ix, iy] = imml[ix, iy] + log(il/(1-il)) - L0[ix, iy];
+            ogl[ix, iy] = ogl[ix, iy] + log(il / (1 - il)) - L0[ix, iy]
+            imml[ix, iy] = imml[ix, iy] + log(il / (1 - il)) - L0[ix, iy]
 
-    return {'og':og,'imml':imml}
-
+    return {'ogl': ogl, 'imml': imml}
