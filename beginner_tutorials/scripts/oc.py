@@ -1,5 +1,4 @@
 from numpy import *
-import scipy.linalg
 
 
 def bresenham(start, end):
@@ -77,18 +76,18 @@ def inverse_scanner_bres(M, N, x, y, theta, r, rmax, p_occ, p_free):
     '''
     # Bound the robot within the map dimensions
     # x1 = max(1,min(c_[M round(x)]))
-    x1 = int(maximum(1, minimum(M, round(x))))
+    x1 = int(maximum(0, minimum(M-1, round(x))))
     # y1 = max(1,min(N,round(y)))
-    y1 = int(maximum(1, minimum(N, round(y))))
+    y1 = int(maximum(0, minimum(N-1, round(y))))
     # Calculate position of measured object (endpoint of ray)
     endpt = c_[x, y] + r * c_[cos(theta), sin(theta)]
     endpt = endpt[0]
     # print(endpt)
     # Bound the endpoint within the map dimensions
     # x2 = max(1,min(M,round(endpt(1))))
-    x2 = int(maximum(1, minimum(M, round(endpt[0]))))
+    x2 = int(maximum(0, minimum(M-1, round(endpt[0]))))
     # y2 = max(1,min(N,round(endpt(2))))
-    y2 = int(maximum(1, minimum(N, round(endpt[1]))))
+    y2 = int(maximum(0, minimum(N-1, round(endpt[1]))))
     # Get coordinates of all cells traversed by laser ray
     # [list(:,1), list(:,2)] = bresenham(x1,y1,x2,y2);
     points = bresenham((x1, y1), (x2, y2))
@@ -111,7 +110,7 @@ def ogmap(M, N, ogl, x, phi_m, r_m, r_max):
     x - Current state Xt
     phi_m, r_m, r_max - Measurement, Zt
     """
-    print x
+    print(x)
 
     # Initial belief map
     m = 0.5 * ones((M, N))
@@ -129,7 +128,7 @@ def ogmap(M, N, ogl, x, phi_m, r_m, r_max):
     # print(r_m)
 
     # Loop through each laser measurement
-    for i in range(0, len(phi_m) - 1):
+    for i in range(len(phi_m)):
 
         if isnan(r_m[i]):
             # print r_m[i]
@@ -138,12 +137,12 @@ def ogmap(M, N, ogl, x, phi_m, r_m, r_max):
 
         # Get inverse measurement model
         inverse_model = inverse_scanner_bres(M, N, x[0], x[1], phi_m[i] + x[2],
-                                      r_m[i], r_max, p_occ, p_free)
+                                             r_m[i], r_max, p_occ, p_free)
 
         # Loop through each cell from measurement model
         for j in range(0, len(inverse_model[:, 0]) - 1):
-            ix = inverse_model[j, 0]
-            iy = inverse_model[j, 1]
+            ix = int(inverse_model[j, 0])
+            iy = int(inverse_model[j, 1])
             il = inverse_model[j, 2]
 
             # Calculate updated log odds
