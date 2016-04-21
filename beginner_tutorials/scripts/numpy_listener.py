@@ -16,11 +16,11 @@ PKG = 'beginner_tutorials'
 roslib.load_manifest(PKG)
 
 # Global Variable Defines
-M_global = 25
-N_global = 25
+M_global = 40
+N_global = 40
 
-odom_scale = 10
-laser_scale = 10
+odom_scale = 10 # Odometry data [m]
+laser_scale = 10  # LaserScan range data [m]
 og_prob_global = None
 ogl = None
 icount = None
@@ -75,7 +75,7 @@ def laser_callback(msg):
     global origin_set
 
     print(icount)
-    icount = icount + 1
+    icount += 1
 
     r_m = msg.ranges * laser_scale
     phi_m = arange(msg.angle_min, msg.angle_max, msg.angle_increment)
