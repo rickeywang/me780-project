@@ -19,13 +19,16 @@ roslib.load_manifest(PKG)
 M_global = 40
 N_global = 40
 
-odom_scale = 10 # Odometry data [m]
-laser_scale = 10  # LaserScan range data [m]
+odom_scale = array(10) # Odometry data [m]
+laser_scale = array(10)  # LaserScan range data [m]
 og_prob_global = None
 ogl = None
 icount = None
 origin = None
 origin_set = False
+
+odom_cache = None
+laser_cache = None
 
 # Interactive mode ON for plot
 pp.ion()
@@ -63,11 +66,10 @@ def odom_callback(data):
     odom_x = data.pose.pose.position.x
     odom_y = data.pose.pose.position.y
     w = data.pose.pose.orientation.w
-    odom_theta = 4*pi - 2*arccos(w) #Only z axis has rotation
     print("Odom X " + str(odom_x) + " Y " + str(odom_y))
 
 
-def laser_callback(msg):
+def laser_callback(laser_msg):
     global icount
     global ogl
     global og_prob_global
@@ -77,9 +79,11 @@ def laser_callback(msg):
     print(icount)
     icount += 1
 
-    r_m = msg.ranges * laser_scale
-    phi_m = arange(msg.angle_min, msg.angle_max, msg.angle_increment)
-    r_max = msg.range_max * laser_scale
+    laser_msg = laser_cache.getElemBeforeTime(laser_cache.getLastestTime())
+
+    r_m = laser_msg.ranges * laser_scale
+    phi_m = arange(laser_msg.angle_min, laser_msg.angle_max, laser_msg.angle_increment)
+    r_max = laser_msg.range_max * laser_scale
 
     # State from odom. Offset by the origin.
     odom_msg = odom_cache.getElemBeforeTime(odom_cache.getLastestTime())
@@ -89,7 +93,7 @@ def laser_callback(msg):
     odom_x = ((odom_msg.pose.pose.position.x - origin[0]) * odom_scale)
     odom_y = ((odom_msg.pose.pose.position.y - origin[1]) * odom_scale)
     w = odom_msg.pose.pose.orientation.w
-    odom_theta = 4 * pi - 2 * arccos(w)
+    odom_theta = w
     #print "Odom X:%s" % odom_x
     state = c_[odom_x, odom_y, odom_theta]
     state = state[0]
@@ -108,6 +112,7 @@ def laser_callback(msg):
     plt.show()
     plt.pause(0.0001)
     plt.figure(1)
+    plt.clf()
     aximg1 = plt.imshow(og_prob_mm, cmap='viridis')
     state_now = state
     for i in range(len(phi_m)):
@@ -139,12 +144,16 @@ def listener():
     #odom_init_once = rospy.Subscriber("/odom", Odometry, odom_init_once)
     rospy.Subscriber("/scan", LaserScan, laser_callback)
     # rospy.Subscriber("floats", Floats, callback)
+    # Time sync problem ... it seems that computer is too slow to process,
+    # so the algorithm runs with latest state but older measurements!
     odom_sub = message_filters.Subscriber("/odom", Odometry)
     global odom_cache
     odom_cache = message_filters.Cache(odom_sub)
     scan_sub = message_filters.Subscriber("/scan", LaserScan)
+    global laser_cache
+    laser_cache = message_filters.Cache(scan_sub)
     ts = message_filters.TimeSynchronizer([odom_sub, scan_sub], 10)
-    ts.registerCallback(laser_callback)
+    ts.registerCallback(laser_callback, 1)
     rospy.spin()
 
 
