@@ -73,27 +73,21 @@ def inverse_scanner_bres(M, N, x, y, theta, r, rmax, p_occ, p_free):
     %   p_free = Probability of an unoccupied cell
     % Output:
     %   m = Matrix representing the inverse measurement model
+    :rtype: Matrix representing the inverse measurement model
     '''
     # Bound the robot within the map dimensions
-    # x1 = max(1,min(c_[M round(x)]))
     x1 = int(maximum(0, minimum(M-1, round(x))))
-    # y1 = max(1,min(N,round(y)))
     y1 = int(maximum(0, minimum(N-1, round(y))))
     # Calculate position of measured object (endpoint of ray)
     endpt = c_[x, y] + r * c_[cos(theta), sin(theta)]
     endpt = endpt[0]
     # print(endpt)
     # Bound the endpoint within the map dimensions
-    # x2 = max(1,min(M,round(endpt(1))))
     x2 = int(maximum(0, minimum(M-1, round(endpt[0]))))
-    # y2 = max(1,min(N,round(endpt(2))))
     y2 = int(maximum(0, minimum(N-1, round(endpt[1]))))
     # Get coordinates of all cells traversed by laser ray
-    # [list(:,1), list(:,2)] = bresenham(x1,y1,x2,y2);
     points = bresenham((x1, y1), (x2, y2))
-    # print(points)
     # Assign probabilities
-    # m = [list p_free * ones(length(list(:, 1)), 1)];
     b = p_free * ones(len(points))
     m = c_[points, b]
 
@@ -109,6 +103,7 @@ def ogmap(M, N, ogl, x, phi_m, r_m, r_max):
     og - Log odds representation of occupancy at time t-1, equals to {l(t-1,i)}
     x - Current state Xt
     phi_m, r_m, r_max - Measurement, Zt
+    :rtype: Dict, Key 'ogl' for the updated ogmap in log odds; key 'imml' for inverse measurement model log odds
     """
     print(x)
 

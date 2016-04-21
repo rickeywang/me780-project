@@ -43,24 +43,10 @@ def setup_og():
     global icount
     icount = 2
 
-
-def update_ogl(ogl_new):
-    ogl = ogl_new
-
-
 def imu_callback(data):
     #   print data
     #print rospy.get_name(), "Linear Accel X: %s" % str(data.linear_acceleration.x)
     data = data
-
-def odom_init_once(data):
-    """
-    Initializes the odometry offset to value that the robot first starts,
-    because the ROS Node on Turtlebot keeps track of odom since first turning on.
-
-    This coordinate becomes our origin. We offset actual /odom data by this origin.
-    """
-
 
 def odom_callback(data):
     odom_x = data.pose.pose.position.x
@@ -79,6 +65,8 @@ def laser_callback(laser_msg):
     print(icount)
     icount += 1
 
+    # @TODO The laser_msg and odom_msg are not synchronized, causing bad maps
+
     laser_msg = laser_cache.getElemBeforeTime(laser_cache.getLastestTime())
 
     r_m = laser_msg.ranges * laser_scale
@@ -88,13 +76,18 @@ def laser_callback(laser_msg):
     # State from odom. Offset by the origin.
     odom_msg = odom_cache.getElemBeforeTime(odom_cache.getLastestTime())
     if not origin_set:
+        """
+        Initializes the odometry offset to value that the robot first starts,
+        because the ROS Node on Turtlebot keeps track of odom since first turning on.
+
+        This coordinate becomes our origin. We offset actual /odom data by this origin.
+        """
         origin = (odom_msg.pose.pose.position.x, odom_msg.pose.pose.position.y)
         origin_set = True
     odom_x = ((odom_msg.pose.pose.position.x - origin[0]) * odom_scale)
     odom_y = ((odom_msg.pose.pose.position.y - origin[1]) * odom_scale)
     w = odom_msg.pose.pose.orientation.w
     odom_theta = w
-    #print "Odom X:%s" % odom_x
     state = c_[odom_x, odom_y, odom_theta]
     state = state[0]
 
@@ -148,12 +141,12 @@ def listener():
     # so the algorithm runs with latest state but older measurements!
     odom_sub = message_filters.Subscriber("/odom", Odometry)
     global odom_cache
-    odom_cache = message_filters.Cache(odom_sub)
+    odom_cache = message_filters.Cache(odom_sub, 2)
     scan_sub = message_filters.Subscriber("/scan", LaserScan)
     global laser_cache
-    laser_cache = message_filters.Cache(scan_sub)
+    laser_cache = message_filters.Cache(scan_sub, 2)
     ts = message_filters.TimeSynchronizer([odom_sub, scan_sub], 10)
-    ts.registerCallback(laser_callback, 1)
+    #ts.registerCallback(laser_callback, 1)
     rospy.spin()
 
 
